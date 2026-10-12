@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>読了カレンダー</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="読了">
+<meta name="theme-color" content="#F3F4F1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14171F" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+:root{
+  --bg:#F3F4F1; --card:#FFFFFF; --ink:#1E2433; --muted:#6B7180; --line:#DCDFE3;
+  --accent:#2F3F7A; --accent-soft:#DDE2F2; --stamp:#B23A3A;
+  --font-display:"Shippori Mincho B1","Hiragino Mincho ProN",serif;
+  --font-body:"Zen Kaku Gothic New","Hiragino Sans",system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#14171F; --card:#1C2029; --ink:#E7E9EE; --muted:#9298A6; --line:#2C313D;
+  --accent:#9FB0EE; --accent-soft:#2A3354; --stamp:#E07A7A; color-scheme:dark}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.6;
+  padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(120px + env(safe-area-inset-bottom,0px))}
+.wrap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+h1{font-family:var(--font-display);font-weight:800;font-size:26px;margin:0;letter-spacing:.04em}
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.sub{color:var(--muted);font-size:12px;letter-spacing:.08em}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.menu{border:1px solid var(--line);background:var(--card);border-radius:999px;width:38px;height:38px;font-size:18px;line-height:1}
+
+.stats{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.stat{padding:12px 10px;display:flex;flex-direction:column;gap:2px;border-left:1px solid var(--line);min-width:0}
+.stat:first-child{border-left:0}
+.stat .k{font-size:11px;color:var(--muted);letter-spacing:.06em}
+.stat .v{font-family:var(--font-mono);font-size:20px;font-variant-numeric:tabular-nums;line-height:1.2}
+.stat .v small{font-size:12px;color:var(--muted)}
+.dots{display:flex;gap:5px;margin-top:4px}
+.dot{width:11px;height:11px;border-radius:50%;border:1.5px solid var(--accent);display:inline-block}
+.dot.on{background:var(--accent)}
+
+.monthbar{display:flex;align-items:center;justify-content:space-between}
+.monthbar h2{font-family:var(--font-display);font-size:22px;margin:0;font-weight:600}
+.monthbar h2 span{font-family:var(--font-mono);font-size:13px;color:var(--muted);margin-left:8px;font-weight:500}
+.navbtn{width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;font-size:16px}
+.navgroup{display:flex;gap:8px;align-items:center}
+.today{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 12px;font-size:12px}
+
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr)) 30px;gap:3px;margin-top:12px}
+.cal .hd{font-size:10px;color:var(--muted);text-align:center;padding-bottom:2px}
+.cal .hd.sat{color:var(--accent)} .cal .hd.sun{color:var(--stamp)}
+.day{position:relative;aspect-ratio:3/4.2;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:0;overflow:hidden;display:block;text-align:left;min-width:0}
+.day.out{opacity:.38}
+.day .n{position:absolute;top:2px;left:4px;font-family:var(--font-mono);font-size:10px;color:var(--muted);z-index:2}
+.day.is-today{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.day.has img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.day.has .n{color:#fff;text-shadow:0 0 3px rgba(0,0,0,.8)}
+.day .more{position:absolute;right:3px;bottom:3px;background:var(--accent);color:var(--card);font-size:9px;font-family:var(--font-mono);border-radius:4px;padding:0 4px;z-index:2}
+.day .noimg{position:absolute;inset:0;display:grid;place-items:center;background:var(--accent-soft);font-family:var(--font-display);font-size:10px;padding:14px 3px 3px;text-align:center;line-height:1.25;overflow:hidden}
+.day .span{position:absolute;left:0;right:0;bottom:3px;height:3px;background:var(--accent);opacity:.55;z-index:1}
+.day .span.s{left:50%} .day .span.e{right:50%}
+.wk{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border-radius:6px}
+.wk .dot{width:9px;height:9px}
+.wk.done{background:var(--accent-soft)}
+.wk .x{font-family:var(--font-mono);font-size:9px;color:var(--muted)}
+.wk.done .x{color:var(--accent)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:10px}
+.legend i{display:inline-block;vertical-align:middle;margin-right:5px}
+.legend .ln{width:16px;height:3px;background:var(--accent);opacity:.55}
+
+.shelf h3{font-size:13px;letter-spacing:.1em;color:var(--muted);margin:0 0 10px;font-weight:500}
+.list{display:flex;flex-direction:column;gap:10px}
+.item{display:grid;grid-template-columns:56px minmax(0,1fr) auto;gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px;text-align:left;width:100%}
+.item .th{width:56px;height:74px;border-radius:4px;object-fit:cover;background:var(--accent-soft);display:block}
+.item .t{font-weight:700;line-height:1.35;overflow-wrap:anywhere}
+.item .a{font-size:12px;color:var(--muted)}
+.item .rng{font-family:var(--font-mono);font-size:11px;color:var(--muted)}
+.stampmini{font-family:var(--font-mono);font-size:10px;color:var(--stamp);border:1.5px solid var(--stamp);border-radius:4px;padding:2px 5px;transform:rotate(-6deg);white-space:nowrap;text-align:center;line-height:1.2}
+
+.empty{background:var(--card);border:1px dashed var(--line);border-radius:12px;padding:22px 18px;text-align:center;color:var(--muted);font-size:13px}
+.empty b{display:block;color:var(--ink);font-family:var(--font-display);font-size:17px;margin-bottom:4px}
+
+.fab{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--accent);color:var(--card);border:0;border-radius:999px;padding:14px 26px;font-weight:700;font-size:15px;box-shadow:0 6px 20px rgba(20,25,45,.25);z-index:5;white-space:nowrap}
+
+.overlay{position:fixed;inset:0;background:rgba(10,12,20,.45);z-index:10;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);width:100%;max-width:560px;max-height:92%;overflow-y:auto;border-radius:16px 16px 0 0;padding:18px 16px calc(24px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px}
+.sheet h2{font-family:var(--font-display);margin:0;font-size:20px}
+.sheethd{display:flex;justify-content:space-between;align-items:center}
+.x-btn{border:0;background:transparent;font-size:22px;color:var(--muted);width:36px;height:36px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:12px;color:var(--muted);letter-spacing:.05em}
+.field input,.field textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 12px;width:100%;min-width:0;-webkit-appearance:none}
+.field textarea{min-height:70px;resize:vertical}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label.photo{display:grid;place-items:center;background:var(--card);border:1.5px dashed var(--line);border-radius:10px;min-height:150px;cursor:pointer;overflow:hidden;position:relative;color:var(--muted);font-size:13px;text-align:center;padding:8px}
+label.photo img{max-height:260px;width:auto;border-radius:6px}
+label.photo input{position:absolute;opacity:0;width:1px;height:1px}
+.actions{display:flex;gap:10px}
+.btn{flex:1;border-radius:10px;padding:12px;font-weight:700;border:1px solid var(--line);background:var(--card)}
+.btn.primary{background:var(--accent);color:var(--card);border-color:var(--accent)}
+.btn.danger{color:var(--stamp);flex:0 0 auto;padding:12px 16px}
+.btn.red{background:var(--stamp);border-color:var(--stamp);color:var(--card)}
+.btn[disabled]{opacity:.5}
+.err{color:var(--stamp);font-size:13px}
+.hint{color:var(--muted);font-size:13px;margin:0}
+
+.detail img.big{width:100%;max-height:52vh;object-fit:contain;border-radius:10px;background:var(--card)}
+.detail .t{font-family:var(--font-display);font-size:21px;line-height:1.35;margin:0;overflow-wrap:anywhere}
+.detail .meta{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.stamp{font-family:var(--font-mono);color:var(--stamp);border:2px solid var(--stamp);border-radius:6px;padding:4px 10px;transform:rotate(-5deg);text-align:center;line-height:1.25;font-size:12px;flex:0 0 auto}
+.stamp b{display:block;font-size:17px;letter-spacing:.06em}
+.note{white-space:pre-wrap;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:14px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:999px;font-size:13px;z-index:20}
+.menu-list{display:flex;flex-direction:column;gap:10px}
+.menu-list .btn{text-align:left;font-weight:500}
+.menu-list .btn small{display:block;color:var(--muted);font-weight:400;font-size:12px}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion:no-preference){.sheet{animation:up .22s ease-out}@keyframes up{from{transform:translateY(30px);opacity:.6}}}
+@media (max-width:380px){.stat .v{font-size:17px}.cal{grid-template-columns:repeat(7,minmax(0,1fr)) 24px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="sub">READING LOG ・ 週2冊</div>
+      <h1>読了カレンダー</h1>
+    </div>
+    <button class="menu" id="b-menu" type="button" aria-label="バックアップ">⋯</button>
+  </header>
+
+  <section class="stats" aria-label="記録のまとめ">
+    <div class="stat"><span class="k">今週の目標</span><span class="v" id="s-week">0<small> / 2冊</small></span><div class="dots" id="s-dots"></div></div>
+    <div class="stat"><span class="k">今月</span><span class="v" id="s-month">0<small>冊</small></span></div>
+    <div class="stat"><span class="k">今年</span><span class="v" id="s-year">0<small>冊</small></span></div>
+    <div class="stat"><span class="k">達成週 連続</span><span class="v" id="s-streak">0<small>週</small></span></div>
+  </section>
+
+  <section>
+    <div class="monthbar">
+      <h2 id="m-title"></h2>
+      <div class="navgroup">
+        <button class="today" id="b-today" type="button">今月</button>
+        <button class="navbtn" id="b-prev" type="button" aria-label="前の月">‹</button>
+        <button class="navbtn" id="b-next" type="button" aria-label="次の月">›</button>
+      </div>
+    </div>
+    <div class="cal" id="cal"></div>
+    <div class="legend">
+      <span><i class="ln"></i>読んでいた期間</span>
+      <span><i class="dot on" style="width:9px;height:9px"></i>右端は週の達成（2冊で塗りつぶし）</span>
+    </div>
+  </section>
+
+  <section class="shelf">
+    <h3 id="shelf-title">この月に読み終えた本</h3>
+    <div class="list" id="list"></div>
+  </section>
+</div>
+
+<button class="fab" id="b-add" type="button">＋ 読み終えた本を記録</button>
+<div id="modal"></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* ---------- storage (IndexedDB, on this iPhone) ---------- */
+const DB_NAME = "dokusho", DB_VER = 1;
+let idb;
+function openDB(){
+  return new Promise((res,rej)=>{
+    const r = indexedDB.open(DB_NAME, DB_VER);
+    r.onupgradeneeded = () => {
+      const d = r.result;
+      if (!d.objectStoreNames.contains("books")) d.createObjectStore("books",{keyPath:"id"});
+      if (!d.objectStoreNames.contains("photos")) d.createObjectStore("photos");
+    };
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+}
+function tx(store, mode, fn){
+  return new Promise((res,rej)=>{
+    const t = idb.transaction(store, mode); let out;
+    const s = Array.isArray(store) ? store.map(n=>t.objectStore(n)) : t.objectStore(store);
+    Promise.resolve(fn(s)).then(v=>out=v);
+    t.oncomplete = () => res(out); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error);
+  });
+}
+const req = r => new Promise((res,rej)=>{ r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
+const getAllBooks = () => tx("books","readonly", s=>req(s.getAll()));
+const putBook = b => tx("books","readwrite", s=>{ s.put(b); });
+const delBook = id => tx("books","readwrite", s=>{ s.delete(id); });
+const putPhoto = (id,blob) => tx("photos","readwrite", s=>{ s.put(blob,id); });
+const getPhoto = id => tx("photos","readonly", s=>req(s.get(id)));
+const delPhoto = id => tx("photos","readwrite", s=>{ s.delete(id); });
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+
+const urlCache = new Map();
+async function loadPhotoURLs(){
+  for (const b of state.books){
+    if (b.photo && !urlCache.has(b.photo)){
+      const blob = await getPhoto(b.photo);
+      if (blob) urlCache.set(b.photo, URL.createObjectURL(blob));
+    }
+  }
+}
+const img = id => urlCache.get(id) || "";
+
+/* ---------- app ---------- */
+const GOAL = 2;
+const state = { books: [], view: new Date(), ready:false };
+state.view.setDate(1);
+
+const $ = s => document.querySelector(s);
+const pad = n => String(n).padStart(2,"0");
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parse = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y,m-1,d); };
+const mondayOf = d => { const x = new Date(d.getFullYear(),d.getMonth(),d.getDate()); x.setDate(x.getDate()-((x.getDay()+6)%7)); return x; };
+const addDays = (d,n) => { const x=new Date(d); x.setDate(x.getDate()+n); return x; };
+const MON = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>t.hidden=true,2200); }
+function byFinish(){ return [...state.books].sort((a,b)=> a.finishedOn<b.finishedOn?1:a.finishedOn>b.finishedOn?-1:(b.createdAt||0)-(a.createdAt||0)); }
+function countIn(from,to){ const f=ymd(from), t=ymd(to); return state.books.filter(b=>b.finishedOn>=f && b.finishedOn<=t).length; }
+
+function renderStats(){
+  const now = new Date(), mon = mondayOf(now);
+  const wk = countIn(mon, addDays(mon,6));
+  $("#s-week").innerHTML = `${wk}<small> / ${GOAL}冊</small>`;
+  $("#s-dots").innerHTML = Array.from({length:GOAL},(_,i)=>`<span class="dot${i<wk?" on":""}"></span>`).join("");
+  $("#s-month").innerHTML = `${countIn(new Date(now.getFullYear(),now.getMonth(),1), new Date(now.getFullYear(),now.getMonth()+1,0))}<small>冊</small>`;
+  $("#s-year").innerHTML = `${countIn(new Date(now.getFullYear(),0,1), new Date(now.getFullYear(),11,31))}<small>冊</small>`;
+  let streak = 0, w = wk >= GOAL ? mon : addDays(mon,-7);
+  while (countIn(w, addDays(w,6)) >= GOAL && streak < 520){ streak++; w = addDays(w,-7); }
+  $("#s-streak").innerHTML = `${streak}<small>週</small>`;
+}
+
+function renderCal(){
+  const v = state.view, y=v.getFullYear(), m=v.getMonth();
+  $("#m-title").innerHTML = `${y}年 ${m+1}月<span>${MON[m]}</span>`;
+  const first = new Date(y,m,1), last = new Date(y,m+1,0);
+  let d = mondayOf(first); const end = addDays(mondayOf(last),6);
+  const today = ymd(new Date()), byDay = {};
+  for (const b of state.books) (byDay[b.finishedOn] ||= []).push(b);
+  const spans = state.books.filter(b=>b.startedOn && b.startedOn < b.finishedOn);
+  let h = ["月","火","水","木","金","土","日"].map((t,i)=>`<div class="hd${i===5?" sat":i===6?" sun":""}">${t}</div>`).join("") + `<div class="hd">週</div>`;
+  while (d <= end){
+    const ws = d;
+    for (let i=0;i<7;i++){
+      const key = ymd(d), list = byDay[key] || [];
+      let inner = `<span class="n">${d.getDate()}</span>`;
+      let cls = "day" + (d.getMonth()!==m?" out":"") + (key===today?" is-today":"");
+      if (list.length){
+        cls += " has"; const b = list[0];
+        inner += (b.photo && img(b.photo)) ? `<img src="${img(b.photo)}" alt="">` : `<span class="noimg">${esc(b.title)}</span>`;
+        if (list.length>1) inner += `<span class="more">+${list.length-1}</span>`;
+      }
+      const sp = spans.find(b=> key>=b.startedOn && key<=b.finishedOn);
+      if (sp) inner += `<span class="span${key===sp.startedOn?" s":""}${key===sp.finishedOn?" e":""}"></span>`;
+      h += `<button type="button" class="${cls}" data-day="${key}" aria-label="${d.getMonth()+1}月${d.getDate()}日">${inner}</button>`;
+      d = addDays(d,1);
+    }
+    const c = countIn(ws, addDays(ws,6));
+    h += `<div class="wk${c>=GOAL?" done":""}">${Array.from({length:GOAL},(_,i)=>`<span class="dot${i<c?" on":""}"></span>`).join("")}<span class="x">${c}</span></div>`;
+  }
+  $("#cal").innerHTML = h;
+}
+
+function itemHTML(b){
+  const f = parse(b.finishedOn);
+  const rng = b.startedOn ? `${b.startedOn.slice(5).replace("-","/")} → ${b.finishedOn.slice(5).replace("-","/")}` : "";
+  return `<button type="button" class="item" data-id="${b.id}">
+    ${b.photo && img(b.photo) ? `<img class="th" src="${img(b.photo)}" alt="">` : `<span class="th"></span>`}
+    <span style="min-width:0"><span class="t">${esc(b.title)||"（タイトルなし）"}</span>${b.author?`<br><span class="a">${esc(b.author)}</span>`:""}${rng?`<br><span class="rng">${rng}</span>`:""}</span>
+    <span class="stampmini">${MON[f.getMonth()]}<br>${pad(f.getDate())}</span></button>`;
+}
+
+function renderList(){
+  const v = state.view, y=v.getFullYear(), m=v.getMonth();
+  const f = ymd(new Date(y,m,1)), t = ymd(new Date(y,m+1,0));
+  const list = byFinish().filter(b=>b.finishedOn>=f && b.finishedOn<=t);
+  $("#shelf-title").textContent = `${m+1}月に読み終えた本 ・ ${list.length}冊`;
+  if (!state.ready){ $("#list").innerHTML = `<div class="empty">読み込み中…</div>`; return; }
+  if (!state.books.length){
+    $("#list").innerHTML = `<div class="empty"><b>まだ記録がありません</b>本を読み終えたら、下の「読み終えた本を記録」から表紙の写真を撮って残しましょう。カレンダーの読了日に表紙が並びます。</div>`; return;
+  }
+  $("#list").innerHTML = list.length ? list.map(itemHTML).join("") : `<div class="empty">この月に読み終えた本はまだありません。</div>`;
+}
+function render(){ renderStats(); renderCal(); renderList(); }
+async function reload(){ state.books = await getAllBooks(); await loadPhotoURLs(); state.ready = true; render(); }
+
+/* ---------- sheets ---------- */
+function closeModal(){ $("#modal").innerHTML = ""; }
+function openSheet(html){
+  $("#modal").innerHTML = `<div class="overlay" id="ov"><div class="sheet" role="dialog" aria-modal="true">${html}</div></div>`;
+  $("#ov").addEventListener("click", e=>{ if (e.target.id==="ov") closeModal(); });
+  $("#modal").querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click", closeModal));
+}
+const head = t => `<div class="sheethd"><h2>${t}</h2><button class="x-btn" type="button" data-close aria-label="閉じる">×</button></div>`;
+
+function openDetail(id){
+  const b = state.books.find(x=>x.id===id); if(!b) return;
+  const f = parse(b.finishedOn);
+  const days = b.startedOn ? Math.round((parse(b.finishedOn)-parse(b.startedOn))/864e5)+1 : null;
+  openSheet(head("読書記録") + `<div class="detail" style="display:flex;flex-direction:column;gap:12px">
+    ${b.photo && img(b.photo)?`<img class="big" src="${img(b.photo)}" alt="">`:""}
+    <div class="meta"><div style="min-width:0"><p class="t">${esc(b.title)||"（タイトルなし）"}</p>${b.author?`<div style="color:var(--muted)">${esc(b.author)}</div>`:""}
+      ${b.startedOn?`<div style="font-family:var(--font-mono);font-size:12px;color:var(--muted);margin-top:4px">${b.startedOn.replaceAll("-","/")} 〜 ${b.finishedOn.replaceAll("-","/")}（${days}日間）</div>`:""}</div>
+      <div class="stamp">${f.getFullYear()}<b>${MON[f.getMonth()]} ${pad(f.getDate())}</b>読了</div></div>
+    ${b.note?`<div class="note">${esc(b.note)}</div>`:""}
+    <div class="actions"><button class="btn" type="button" id="d-edit">編集</button><button class="btn danger" type="button" id="d-del">削除</button></div>
+  </div>`);
+  $("#d-edit").addEventListener("click", ()=>openForm(b));
+  $("#d-del").addEventListener("click", ()=>confirmDelete(b));
+}
+
+function openDay(key){
+  const list = state.books.filter(b=>b.finishedOn===key);
+  if (list.length===1) return openDetail(list[0].id);
+  if (!list.length) return openForm(null, key);
+  const d = parse(key);
+  openSheet(head(`${d.getMonth()+1}月${d.getDate()}日に読了`) + `<div class="list">${list.map(itemHTML).join("")}</div>`);
+  $("#modal").querySelectorAll(".item").forEach(el=>el.addEventListener("click",()=>openDetail(el.dataset.id)));
+}
+
+function confirmDelete(b){
+  openSheet(head("この記録を削除しますか？") + `<p style="margin:0">「${esc(b.title)||"タイトルなし"}」の記録と写真を削除します。元に戻せません。</p>
+    <div class="actions"><button class="btn" data-close type="button">やめる</button><button class="btn red" id="do-del" type="button">削除する</button></div>`);
+  $("#do-del").addEventListener("click", async ()=>{
+    await delBook(b.id);
+    if (b.photo){ await delPhoto(b.photo); const u=urlCache.get(b.photo); if(u){URL.revokeObjectURL(u); urlCache.delete(b.photo);} }
+    closeModal(); await reload(); toast("削除しました");
+  });
+}
+
+async function shrink(file){
+  const url = URL.createObjectURL(file);
+  try{
+    const im = await new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=url; });
+    const s = Math.min(1, 1400/Math.max(im.naturalWidth, im.naturalHeight));
+    const c = document.createElement("canvas"); c.width=Math.round(im.naturalWidth*s); c.height=Math.round(im.naturalHeight*s);
+    c.getContext("2d").drawImage(im,0,0,c.width,c.height);
+    return await new Promise(res=>c.toBlob(res,"image/jpeg",0.84));
+  } finally { URL.revokeObjectURL(url); }
+}
+
+function openForm(book, presetDay){
+  const editing = !!book;
+  const b = book || { title:"", author:"", startedOn:"", finishedOn: presetDay || ymd(new Date()), note:"", photo:"" };
+  let newFile = null;
+  openSheet(head(editing?"記録を編集":"読み終えた本を記録") + `
+    <form id="f" style="display:flex;flex-direction:column;gap:14px" novalidate>
+      <label class="photo" id="ph">${b.photo && img(b.photo)?`<img src="${img(b.photo)}" alt="">`:`<span>📷 タップして写真を撮る／選ぶ<br><small>本の表紙や、読み終えた日の一枚</small></span>`}
+        <input type="file" id="f-photo" accept="image/*"></label>
+      <div class="field"><label for="f-title">タイトル</label><input id="f-title" value="${esc(b.title)}" autocomplete="off"></div>
+      <div class="field"><label for="f-author">著者（任意）</label><input id="f-author" value="${esc(b.author)}" autocomplete="off"></div>
+      <div class="row2">
+        <div class="field"><label for="f-start">読み始めた日（任意）</label><input type="date" id="f-start" value="${b.startedOn||""}"></div>
+        <div class="field"><label for="f-end">読み終えた日</label><input type="date" id="f-end" value="${b.finishedOn}"></div>
+      </div>
+      <div class="field"><label for="f-note">ひとことメモ（任意）</label><textarea id="f-note">${esc(b.note)}</textarea></div>
+      <div class="err" id="f-err"></div>
+      <div class="actions"><button class="btn" type="button" data-close>キャンセル</button><button class="btn primary" type="submit" id="f-save">保存</button></div>
+    </form>`);
+  $("#f-photo").addEventListener("change", e=>{
+    const file = e.target.files[0]; if(!file) return;
+    newFile = file;
+    $("#ph").querySelector("span, img")?.remove();
+    const i = document.createElement("img"); i.src = URL.createObjectURL(file); i.alt=""; $("#ph").prepend(i);
+  });
+  $("#f").addEventListener("submit", async e=>{
+    e.preventDefault();
+    const err = $("#f-err"); err.textContent="";
+    const title = $("#f-title").value.trim(), finishedOn = $("#f-end").value, startedOn = $("#f-start").value;
+    if (!title && !newFile && !b.photo){ err.textContent = "タイトルか写真のどちらかを入れてください。"; return; }
+    if (!finishedOn){ err.textContent = "読み終えた日を選んでください。"; return; }
+    if (startedOn && startedOn > finishedOn){ err.textContent = "読み始めた日が、読み終えた日より後になっています。"; return; }
+    const save = $("#f-save"); save.disabled = true; save.textContent = "保存中…";
+    try{
+      let photo = b.photo || "";
+      if (newFile){
+        const small = await shrink(newFile);
+        const pid = uid(); await putPhoto(pid, small);
+        if (editing && b.photo){ await delPhoto(b.photo); urlCache.delete(b.photo); }
+        photo = pid;
+      }
+      await putBook({ id: editing ? b.id : uid(), title, author: $("#f-author").value.trim(), startedOn, finishedOn,
+        note: $("#f-note").value.trim(), photo, createdAt: b.createdAt || Date.now() });
+      closeModal();
+      const fd = parse(finishedOn); state.view = new Date(fd.getFullYear(), fd.getMonth(), 1);
+      await reload(); toast(editing ? "更新しました" : "記録しました");
+    }catch(x){
+      save.disabled=false; save.textContent="保存";
+      err.textContent = "保存できませんでした。iPhoneの空き容量を確認して、もう一度お試しください。";
+    }
+  });
+}
+
+/* ---------- backup ---------- */
+const blobToDataURL = b => new Promise(r=>{ const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.readAsDataURL(b); });
+async function exportData(){
+  const books = await getAllBooks(), photos = {};
+  for (const b of books) if (b.photo){ const bl = await getPhoto(b.photo); if (bl) photos[b.photo] = await blobToDataURL(bl); }
+  const json = JSON.stringify({ app:"dokusho", version:1, exportedAt:new Date().toISOString(), books, photos });
+  const name = `読了カレンダー_${ymd(new Date())}.json`;
+  const file = new File([json], name, {type:"application/json"});
+  if (navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file], title:name}); return; }catch(e){ if (e.name==="AbortError") return; }
+  }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(file); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+}
+async function importData(file){
+  const data = JSON.parse(await file.text());
+  if (data.app !== "dokusho" || !Array.isArray(data.books)) throw new Error("bad");
+  let n = 0;
+  for (const b of data.books){
+    if (!b.id || !b.finishedOn) continue;
+    if (b.photo && data.photos?.[b.photo]){ const bl = await (await fetch(data.photos[b.photo])).blob(); await putPhoto(b.photo, bl); }
+    await putBook(b); n++;
+  }
+  return n;
+}
+function openMenu(){
+  openSheet(head("バックアップ") + `
+    <p class="hint">記録と写真はこのiPhoneの中だけに保存されています。機種変更やアプリの削除に備えて、ときどき書き出しておくと安心です。</p>
+    <div class="menu-list">
+      <button class="btn" type="button" id="m-exp">書き出す<small>「ファイルに保存」でiCloud Driveなどに残せます</small></button>
+      <label class="btn" style="cursor:pointer">読み込む<small>書き出したファイルから記録を戻します（同じ記録は上書き）</small><input type="file" id="m-imp" accept="application/json,.json" hidden></label>
+    </div>
+    <div class="err" id="m-err"></div>`);
+  $("#m-exp").addEventListener("click", ()=>exportData().catch(()=>$("#m-err").textContent="書き出せませんでした。"));
+  $("#m-imp").addEventListener("change", async e=>{
+    const f = e.target.files[0]; if (!f) return;
+    try{ const n = await importData(f); closeModal(); await reload(); toast(`${n}冊を読み込みました`); }
+    catch(_){ $("#m-err").textContent = "このファイルは読み込めません。読了カレンダーで書き出したファイルを選んでください。"; }
+  });
+}
+
+/* ---------- events ---------- */
+$("#cal").addEventListener("click", e=>{ const d = e.target.closest("[data-day]"); if(d) openDay(d.dataset.day); });
+$("#list").addEventListener("click", e=>{ const it = e.target.closest(".item"); if(it) openDetail(it.dataset.id); });
+const go = n => { state.view = new Date(state.view.getFullYear(), state.view.getMonth()+n, 1); renderCal(); renderList(); };
+$("#b-prev").addEventListener("click", ()=>go(-1));
+$("#b-next").addEventListener("click", ()=>go(1));
+$("#b-today").addEventListener("click", ()=>{ const n=new Date(); state.view = new Date(n.getFullYear(), n.getMonth(), 1); renderCal(); renderList(); });
+$("#b-add").addEventListener("click", ()=>openForm(null));
+$("#b-menu").addEventListener("click", openMenu);
+let sx=null; $("#cal").addEventListener("touchstart",e=>{sx=e.touches[0].clientX},{passive:true});
+$("#cal").addEventListener("touchend",e=>{ if(sx==null) return; const dx=e.changedTouches[0].clientX-sx; sx=null; if(Math.abs(dx)>60) go(dx<0?1:-1); });
+
+render();
+openDB().then(d=>{ idb=d; return reload(); }).catch(()=>{ $("#list").innerHTML = `<div class="empty"><b>保存領域を開けません</b>プライベートブラウズでは記録を保存できません。ホーム画面のアイコンから開いてください。</div>`; });
+if (navigator.storage?.persist) navigator.storage.persist().catch(()=>{});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>
